@@ -89,7 +89,7 @@ export default function RecordPage() {
       <div className="text-center mb-8">
         <h1 className="text-2xl font-bold text-gray-900">New Recording</h1>
         <p className="text-gray-500 mt-1">
-          Record audio and let AI transcribe and summarize it
+          Record a room or virtual meeting — AI will transcribe and summarize it
         </p>
       </div>
 

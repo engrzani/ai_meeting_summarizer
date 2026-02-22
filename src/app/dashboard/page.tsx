@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import Link from "next/link";
-import { Mic, Plus } from "lucide-react";
+import { Mic, Plus, History } from "lucide-react";
 import RecordingsList from "@/components/RecordingsList";
 
 export default async function DashboardPage() {
@@ -12,7 +12,7 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
@@ -32,12 +32,12 @@ export default async function DashboardPage() {
       <div className="bg-white rounded-2xl border border-gray-200 p-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center">
-            <Mic className="w-5 h-5 text-indigo-500" />
+            <History className="w-5 h-5 text-indigo-500" />
           </div>
           <div>
-            <h2 className="font-semibold text-gray-900">Your Recordings</h2>
+            <h2 className="font-semibold text-gray-900">Meeting History</h2>
             <p className="text-sm text-gray-400">
-              All your audio recordings and transcripts
+              All your room & virtual meeting recordings
             </p>
           </div>
         </div>

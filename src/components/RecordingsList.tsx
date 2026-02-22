@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -14,6 +14,9 @@ import {
   CheckCircle,
   AlertCircle,
   ChevronRight,
+  Search,
+  Filter,
+  Calendar,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
@@ -26,10 +29,16 @@ interface Recording {
   shareToken: string | null;
 }
 
+type StatusFilter = "all" | "completed" | "processing" | "error";
+type SortOrder = "newest" | "oldest";
+
 export default function RecordingsList() {
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
   const router = useRouter();
 
   useEffect(() => {
@@ -49,6 +58,36 @@ export default function RecordingsList() {
       setLoading(false);
     }
   };
+
+  const filteredRecordings = useMemo(() => {
+    let filtered = [...recordings];
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter((r) => r.title.toLowerCase().includes(q));
+    }
+
+    // Status filter
+    if (statusFilter !== "all") {
+      if (statusFilter === "processing") {
+        filtered = filtered.filter((r) =>
+          ["processing", "transcribing", "summarizing"].includes(r.status)
+        );
+      } else {
+        filtered = filtered.filter((r) => r.status === statusFilter);
+      }
+    }
+
+    // Sort
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return sortOrder === "newest" ? dateB - dateA : dateA - dateB;
+    });
+
+    return filtered;
+  }, [recordings, searchQuery, statusFilter, sortOrder]);
 
   const deleteRecording = async (id: string) => {
     if (!confirm("Are you sure you want to delete this recording?")) return;
@@ -107,6 +146,21 @@ export default function RecordingsList() {
     }
   };
 
+  const formatDuration = (seconds: number | null) => {
+    if (!seconds) return "";
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    if (hrs > 0) return `${hrs}h ${mins}m`;
+    if (mins > 0) return `${mins}m ${secs}s`;
+    return `${secs}s`;
+  };
+
+  // Stats
+  const totalRecordings = recordings.length;
+  const completedCount = recordings.filter((r) => r.status === "completed").length;
+  const totalDuration = recordings.reduce((sum, r) => sum + (r.duration || 0), 0);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -137,8 +191,73 @@ export default function RecordingsList() {
   }
 
   return (
-    <div className="space-y-3">
-      {recordings.map((recording) => (
+    <div>
+      {/* Stats Bar */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="bg-indigo-50 rounded-xl p-3 text-center">
+          <p className="text-2xl font-bold text-indigo-700">{totalRecordings}</p>
+          <p className="text-xs text-indigo-500 font-medium">Total Recordings</p>
+        </div>
+        <div className="bg-green-50 rounded-xl p-3 text-center">
+          <p className="text-2xl font-bold text-green-700">{completedCount}</p>
+          <p className="text-xs text-green-500 font-medium">Completed</p>
+        </div>
+        <div className="bg-purple-50 rounded-xl p-3 text-center">
+          <p className="text-2xl font-bold text-purple-700">{formatDuration(totalDuration) || "0s"}</p>
+          <p className="text-xs text-purple-500 font-medium">Total Duration</p>
+        </div>
+      </div>
+
+      {/* Search & Filters */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-5">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search recordings..."
+            className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 placeholder-gray-400"
+          />
+        </div>
+        <div className="flex gap-2">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+            className="px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 bg-white"
+          >
+            <option value="all">All Status</option>
+            <option value="completed">Completed</option>
+            <option value="processing">Processing</option>
+            <option value="error">Error</option>
+          </select>
+          <select
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value as SortOrder)}
+            className="px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 bg-white"
+          >
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Results count */}
+      {(searchQuery || statusFilter !== "all") && (
+        <p className="text-xs text-gray-400 mb-3">
+          {filteredRecordings.length} of {recordings.length} recordings
+        </p>
+      )}
+
+      {/* Recordings List */}
+      <div className="space-y-3">
+        {filteredRecordings.length === 0 ? (
+          <div className="text-center py-8">
+            <Search className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500 text-sm">No recordings match your filters</p>
+          </div>
+        ) : (
+          filteredRecordings.map((recording) => (
         <div
           key={recording.id}
           className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-all duration-200 group"
@@ -204,7 +323,9 @@ export default function RecordingsList() {
             </div>
           </div>
         </div>
-      ))}
+          ))
+        )}
+      </div>
     </div>
   );
 }
