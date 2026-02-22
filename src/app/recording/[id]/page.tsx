@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   ArrowLeft,
   Download,
@@ -13,6 +15,8 @@ import {
   Clock,
   Copy,
   Check,
+  Calendar,
+  Sparkles,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
@@ -108,33 +112,40 @@ export default function RecordingDetailPage() {
   const isProcessing = !["completed", "error"].includes(recording.status);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+      {/* Top Bar */}
+      <div className="flex items-center gap-3 mb-8">
         <button
           onClick={() => router.push("/dashboard")}
           className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
         >
-          <ArrowLeft className="w-5 h-5 text-gray-600" />
+          <ArrowLeft className="w-5 h-5 text-gray-500" />
         </button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-bold text-gray-900 truncate">
+          <h1 className="text-2xl font-bold text-gray-900 truncate">
             {recording.title}
           </h1>
-          <div className="flex items-center gap-3 text-sm text-gray-400 mt-0.5">
-            <span className="flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" />
+          <div className="flex items-center gap-4 text-sm text-gray-400 mt-1">
+            <span className="flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5" />
               {formatDate(new Date(recording.createdAt))}
             </span>
+            {recording.duration && (
+              <span className="flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5" />
+                {Math.floor(recording.duration / 60)}m {recording.duration % 60}s
+              </span>
+            )}
             <span
-              className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                 recording.status === "completed"
-                  ? "bg-green-50 text-green-600"
+                  ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
                   : recording.status === "error"
-                    ? "bg-red-50 text-red-600"
-                    : "bg-amber-50 text-amber-600"
+                    ? "bg-red-50 text-red-700 ring-1 ring-red-200"
+                    : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
               }`}
             >
+              {recording.status === "completed" && <Check className="w-3 h-3" />}
               {recording.status}
             </span>
           </div>
@@ -144,18 +155,18 @@ export default function RecordingDetailPage() {
             <>
               <a
                 href={`/api/recordings/${recording.id}/pdf`}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white text-sm font-medium rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all shadow-sm shadow-indigo-200"
               >
                 <Download className="w-4 h-4" />
-                PDF
+                Export PDF
               </a>
               <button
                 onClick={copyShareLink}
-                className="inline-flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
               >
                 {copied ? (
                   <>
-                    <Check className="w-4 h-4 text-green-500" />
+                    <Check className="w-4 h-4 text-emerald-500" />
                     Copied!
                   </>
                 ) : (
@@ -172,8 +183,8 @@ export default function RecordingDetailPage() {
 
       {/* Audio Player */}
       {recording.audioUrl && (
-        <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
-          <audio controls className="w-full" src={recording.audioUrl}>
+        <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-5 mb-8 shadow-lg">
+          <audio controls className="w-full [&::-webkit-media-controls-panel]:bg-transparent" src={recording.audioUrl}>
             Your browser does not support the audio element.
           </audio>
         </div>
@@ -181,43 +192,50 @@ export default function RecordingDetailPage() {
 
       {/* Processing State */}
       {isProcessing && (
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-indigo-500 mx-auto mb-4" />
-          <p className="font-semibold text-gray-900">
+        <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center shadow-sm">
+          <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
+            <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+          </div>
+          <p className="text-lg font-semibold text-gray-900">
             {recording.status === "transcribing"
               ? "Transcribing your audio..."
               : recording.status === "summarizing"
                 ? "Generating AI summary..."
                 : "Processing..."}
           </p>
-          <p className="text-sm text-gray-500 mt-1">
-            This may take a minute. The page will update automatically.
+          <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">
+            Our AI is analyzing your recording. This page will update automatically when ready.
           </p>
+          <div className="flex justify-center gap-1.5 mt-6">
+            <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+            <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+            <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+          </div>
         </div>
       )}
 
       {/* Results */}
       {recording.status === "completed" && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
           {/* Tabs */}
-          <div className="flex border-b border-gray-200">
+          <div className="flex border-b border-gray-100 bg-gray-50/50">
             <button
               onClick={() => setActiveTab("summary")}
-              className={`flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex items-center gap-2 px-6 py-4 text-sm font-semibold border-b-2 transition-all ${
                 activeTab === "summary"
-                  ? "border-indigo-600 text-indigo-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                  ? "border-indigo-600 text-indigo-600 bg-white"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-white/50"
               }`}
             >
-              <Brain className="w-4 h-4" />
+              <Sparkles className="w-4 h-4" />
               AI Summary
             </button>
             <button
               onClick={() => setActiveTab("transcript")}
-              className={`flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex items-center gap-2 px-6 py-4 text-sm font-semibold border-b-2 transition-all ${
                 activeTab === "transcript"
-                  ? "border-indigo-600 text-indigo-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                  ? "border-indigo-600 text-indigo-600 bg-white"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-white/50"
               }`}
             >
               <FileText className="w-4 h-4" />
@@ -226,15 +244,94 @@ export default function RecordingDetailPage() {
           </div>
 
           {/* Tab Content */}
-          <div className="p-6">
+          <div className="p-8">
             {activeTab === "summary" && (
-              <div className="prose prose-sm max-w-none">
+              <div>
                 {recording.summary ? (
-                  <div className="whitespace-pre-wrap text-gray-700 leading-relaxed">
-                    {recording.summary}
+                  <div className="summary-content">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        h1: ({ children }) => (
+                          <h1 className="text-2xl font-bold text-gray-900 mb-4 pb-3 border-b border-gray-100">
+                            {children}
+                          </h1>
+                        ),
+                        h2: ({ children }) => (
+                          <div className="mt-8 mb-4 first:mt-0">
+                            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                              <span className="w-1 h-6 bg-indigo-500 rounded-full inline-block" />
+                              {children}
+                            </h2>
+                          </div>
+                        ),
+                        h3: ({ children }) => (
+                          <h3 className="text-base font-semibold text-gray-800 mt-5 mb-2">
+                            {children}
+                          </h3>
+                        ),
+                        p: ({ children }) => (
+                          <p className="text-gray-700 leading-7 mb-3">
+                            {children}
+                          </p>
+                        ),
+                        ul: ({ children }) => (
+                          <ul className="space-y-2 mb-4 ml-1">
+                            {children}
+                          </ul>
+                        ),
+                        ol: ({ children }) => (
+                          <ol className="space-y-2 mb-4 ml-1 list-decimal list-inside">
+                            {children}
+                          </ol>
+                        ),
+                        li: ({ children }) => {
+                          const text = String(children);
+                          const isChecked = text.startsWith("☑") || text.startsWith("✅");
+                          const isUnchecked = text.startsWith("☐") || text.startsWith("⬜");
+                          return (
+                            <li className="flex items-start gap-3 text-gray-700 leading-7">
+                              <span className="mt-2 w-1.5 h-1.5 bg-indigo-400 rounded-full flex-shrink-0" />
+                              <span>{children}</span>
+                            </li>
+                          );
+                        },
+                        strong: ({ children }) => (
+                          <strong className="font-semibold text-gray-900">
+                            {children}
+                          </strong>
+                        ),
+                        hr: () => (
+                          <hr className="my-6 border-gray-100" />
+                        ),
+                        em: ({ children }) => (
+                          <em className="text-gray-500 text-sm not-italic">
+                            {children}
+                          </em>
+                        ),
+                        blockquote: ({ children }) => (
+                          <blockquote className="border-l-3 border-indigo-200 bg-indigo-50/50 rounded-r-lg pl-4 pr-4 py-3 my-4 text-gray-700">
+                            {children}
+                          </blockquote>
+                        ),
+                        input: ({ checked, ...props }) => (
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            readOnly
+                            className="w-4 h-4 rounded border-gray-300 text-indigo-600 mr-2 mt-0.5"
+                          />
+                        ),
+                      }}
+                    >
+                      {recording.summary}
+                    </ReactMarkdown>
                   </div>
                 ) : (
-                  <p className="text-gray-400 italic">No summary available</p>
+                  <div className="text-center py-12">
+                    <Brain className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-400">No summary available</p>
+                  </div>
                 )}
               </div>
             )}
@@ -247,19 +344,21 @@ export default function RecordingDetailPage() {
                       navigator.clipboard.writeText(recording.transcript);
                     }
                   }}
-                  className="absolute top-0 right-0 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                  className="absolute top-0 right-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-500 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
                   title="Copy transcript"
                 >
-                  <Copy className="w-4 h-4" />
+                  <Copy className="w-3.5 h-3.5" />
+                  Copy
                 </button>
                 {recording.transcript ? (
-                  <div className="whitespace-pre-wrap text-gray-700 leading-relaxed pr-10">
+                  <div className="whitespace-pre-wrap text-gray-700 leading-8 pr-20 font-mono text-sm bg-gray-50/50 rounded-xl p-6 border border-gray-100">
                     {recording.transcript}
                   </div>
                 ) : (
-                  <p className="text-gray-400 italic">
-                    No transcript available
-                  </p>
+                  <div className="text-center py-12">
+                    <FileText className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-400">No transcript available</p>
+                  </div>
                 )}
               </div>
             )}

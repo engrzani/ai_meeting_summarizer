@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Loader2, FileText, Brain, Clock, User, Mic } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Loader2, FileText, Clock, User, Mic, Sparkles } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
 interface SharedRecording {
@@ -92,26 +94,26 @@ export default function SharedRecordingPage() {
 
       {/* Content */}
       {recording.status === "completed" ? (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
           {/* Tabs */}
-          <div className="flex border-b border-gray-200">
+          <div className="flex border-b border-gray-100 bg-gray-50/50">
             <button
               onClick={() => setActiveTab("summary")}
-              className={`flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex items-center gap-2 px-6 py-4 text-sm font-semibold border-b-2 transition-all ${
                 activeTab === "summary"
-                  ? "border-indigo-600 text-indigo-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                  ? "border-indigo-600 text-indigo-600 bg-white"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-white/50"
               }`}
             >
-              <Brain className="w-4 h-4" />
+              <Sparkles className="w-4 h-4" />
               AI Summary
             </button>
             <button
               onClick={() => setActiveTab("transcript")}
-              className={`flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex items-center gap-2 px-6 py-4 text-sm font-semibold border-b-2 transition-all ${
                 activeTab === "transcript"
-                  ? "border-indigo-600 text-indigo-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                  ? "border-indigo-600 text-indigo-600 bg-white"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-white/50"
               }`}
             >
               <FileText className="w-4 h-4" />
@@ -119,15 +121,81 @@ export default function SharedRecordingPage() {
             </button>
           </div>
 
-          <div className="p-6">
+          <div className="p-8">
             {activeTab === "summary" && (
-              <div className="whitespace-pre-wrap text-gray-700 leading-relaxed">
-                {recording.summary || "No summary available"}
+              <div>
+                {recording.summary ? (
+                  <div className="summary-content">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        h1: ({ children }) => (
+                          <h1 className="text-2xl font-bold text-gray-900 mb-4 pb-3 border-b border-gray-100">
+                            {children}
+                          </h1>
+                        ),
+                        h2: ({ children }) => (
+                          <div className="mt-8 mb-4 first:mt-0">
+                            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                              <span className="w-1 h-6 bg-indigo-500 rounded-full inline-block" />
+                              {children}
+                            </h2>
+                          </div>
+                        ),
+                        h3: ({ children }) => (
+                          <h3 className="text-base font-semibold text-gray-800 mt-5 mb-2">
+                            {children}
+                          </h3>
+                        ),
+                        p: ({ children }) => (
+                          <p className="text-gray-700 leading-7 mb-3">{children}</p>
+                        ),
+                        ul: ({ children }) => (
+                          <ul className="space-y-2 mb-4 ml-1">{children}</ul>
+                        ),
+                        ol: ({ children }) => (
+                          <ol className="space-y-2 mb-4 ml-1 list-decimal list-inside">{children}</ol>
+                        ),
+                        li: ({ children }) => (
+                          <li className="flex items-start gap-3 text-gray-700 leading-7">
+                            <span className="mt-2 w-1.5 h-1.5 bg-indigo-400 rounded-full flex-shrink-0" />
+                            <span>{children}</span>
+                          </li>
+                        ),
+                        strong: ({ children }) => (
+                          <strong className="font-semibold text-gray-900">{children}</strong>
+                        ),
+                        hr: () => <hr className="my-6 border-gray-100" />,
+                        em: ({ children }) => (
+                          <em className="text-gray-500 text-sm not-italic">{children}</em>
+                        ),
+                        input: ({ checked, ...props }) => (
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            readOnly
+                            className="w-4 h-4 rounded border-gray-300 text-indigo-600 mr-2 mt-0.5"
+                          />
+                        ),
+                      }}
+                    >
+                      {recording.summary}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  <p className="text-gray-400 text-center py-8">No summary available</p>
+                )}
               </div>
             )}
             {activeTab === "transcript" && (
-              <div className="whitespace-pre-wrap text-gray-700 leading-relaxed">
-                {recording.transcript || "No transcript available"}
+              <div>
+                {recording.transcript ? (
+                  <div className="whitespace-pre-wrap text-gray-700 leading-8 font-mono text-sm bg-gray-50/50 rounded-xl p-6 border border-gray-100">
+                    {recording.transcript}
+                  </div>
+                ) : (
+                  <p className="text-gray-400 text-center py-8">No transcript available</p>
+                )}
               </div>
             )}
           </div>
