@@ -93,6 +93,20 @@ async function processRecording(recordingId: string, audioUrl: string, language:
       data: { transcript: transcription },
     });
 
+    // Validate transcript quality before generating summary
+    const transcriptLength = transcription.trim().length;
+    if (transcriptLength < 10) {
+      // Transcript too short or unclear
+      await prisma.recording.update({
+        where: { id: recordingId },
+        data: { 
+          summary: "**Insufficient Audio Content**\n\nThe recording was too short or unclear to generate a meaningful summary. Please ensure:\n- Recording duration is at least 10-15 seconds\n- You speak clearly and at normal volume\n- Background noise is minimized\n- For virtual meetings, 'Share tab audio' is enabled",
+          status: "completed",
+        },
+      });
+      return;
+    }
+
     // Language names mapping
     const languageNames: { [key: string]: string } = {
       en: "English",

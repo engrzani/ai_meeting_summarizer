@@ -261,6 +261,16 @@ export default function AudioRecorder({
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
+      // Warn if recording is too short
+      if (duration < 10) {
+        const confirmed = confirm(
+          `Recording is only ${duration} seconds. For best transcription results, we recommend at least 10 seconds.\\n\\nDo you want to stop anyway?`
+        );
+        if (!confirmed) {
+          return; // Don't stop
+        }
+      }
+      
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       setIsPaused(false);
@@ -406,10 +416,17 @@ export default function AudioRecorder({
       {/* Timer & Controls */}
       {isRecording && (
         <div className="flex flex-col items-center gap-4">
-          <div className={`text-3xl font-mono font-bold tabular-nums ${isPaused ? "text-amber-500" : "text-red-500"}`}>
+          <div className={`text-3xl font-mono font-bold tabular-nums ${isPaused ? "text-amber-500" : duration < 10 ? "text-orange-500" : "text-red-500"}`}>
             {formatTime(duration)}
             {isPaused && <span className="text-sm font-sans ml-2">PAUSED</span>}
           </div>
+          
+          {/* Minimum duration indicator */}
+          {duration < 10 && !isPaused && (
+            <div className="text-xs text-orange-600 font-medium bg-orange-50 px-3 py-1 rounded-full border border-orange-200">
+              Record at least 10 seconds for best results
+            </div>
+          )}
 
           {/* Pause/Resume Button */}
           <button

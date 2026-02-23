@@ -30,7 +30,21 @@ export default function RecordPage() {
     return null;
   }
 
-  const handleRecordingComplete = async (blob: Blob) => {
+  const handleRecordingComplete = async (blob: Blob, duration: number) => {
+    // Validate minimum duration (at least 3 seconds)
+    if (duration < 3) {
+      setError("Recording too short. Please record at least 3 seconds of audio for accurate transcription.");
+      setUploadStatus("error");
+      return;
+    }
+
+    // Validate blob size (at least 1KB)
+    if (blob.size < 1024) {
+      setError("Recording file is too small. Please ensure your microphone is working and try again.");
+      setUploadStatus("error");
+      return;
+    }
+
     setUploadStatus("uploading");
     setError("");
 
@@ -113,6 +127,15 @@ export default function RecordPage() {
         <p className="text-gray-500 mt-1">
           Record a room or virtual meeting — AI will transcribe and summarize it
         </p>
+        <div className="mt-4 bg-blue-50 border border-blue-100 rounded-xl p-3 text-sm text-blue-700 max-w-md mx-auto">
+          <p className="font-semibold mb-1">📝 Tips for best results:</p>
+          <ul className="text-xs space-y-0.5 text-left">
+            <li>• Speak clearly and at normal volume</li>
+            <li>• Record at least 10-15 seconds of content</li>
+            <li>• Minimize background noise</li>
+            <li>• For virtual meetings: check "Share tab audio"</li>
+          </ul>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-200 p-8">
