@@ -53,15 +53,31 @@ export default function RecordingDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authStatus, id]);
 
-  // Poll if still processing
+  // Poll if still processing with faster initial checks
   useEffect(() => {
     if (!recording || recording.status === "completed" || recording.status === "error") return;
 
-    const interval = setInterval(async () => {
-      await fetchRecording();
-    }, 3000);
+    let pollCount = 0;
+    let pollInterval = 1000; // Start with 1 second
+    let timeoutId: NodeJS.Timeout;
 
-    return () => clearInterval(interval);
+    const poll = async () => {
+      await fetchRecording();
+      pollCount++;
+
+      // Exponential backoff
+      if (pollCount > 5) pollInterval = 2000;
+      if (pollCount > 10) pollInterval = 3000;
+
+      // Continue polling if not completed/error and under 60 attempts
+      if (pollCount < 60) {
+        timeoutId = setTimeout(poll, pollInterval);
+      }
+    };
+
+    timeoutId = setTimeout(poll, pollInterval);
+
+    return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recording?.status]);
 

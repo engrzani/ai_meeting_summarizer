@@ -11,6 +11,7 @@ type UploadStatus = "idle" | "uploading" | "processing" | "done" | "error";
 export default function RecordPage() {
   const { data: session, status } = useSession();
   const [title, setTitle] = useState("");
+  const [language, setLanguage] = useState("en");
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
   const [recordingId, setRecordingId] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -37,6 +38,7 @@ export default function RecordPage() {
       const formData = new FormData();
       formData.append("audio", blob, "recording.webm");
       formData.append("title", title || `Recording ${new Date().toLocaleDateString()}`);
+      formData.append("language", language);
 
       const response = await fetch("/api/recordings", {
         method: "POST",
@@ -61,27 +63,47 @@ export default function RecordPage() {
   };
 
   const pollStatus = async (id: string) => {
-    const interval = setInterval(async () => {
+    let pollCount = 0;
+    let pollInterval = 1000; // Start with 1 second
+    
+    const checkStatus = async () => {
       try {
         const response = await fetch(`/api/recordings/${id}/status`);
         if (response.ok) {
           const data = await response.json();
           if (data.status === "completed") {
-            clearInterval(interval);
             setUploadStatus("done");
+            return true; // Stop polling
           } else if (data.status === "error") {
-            clearInterval(interval);
             setUploadStatus("error");
             setError("Processing failed. Please try again.");
+            return true; // Stop polling
           }
         }
       } catch {
         // Continue polling
       }
-    }, 3000);
+      return false; // Continue polling
+    };
 
-    // Stop polling after 5 minutes
-    setTimeout(() => clearInterval(interval), 300000);
+    // Exponential backoff: faster initially, slower later
+    const poll = async () => {
+      pollCount++;
+      const shouldStop = await checkStatus();
+      
+      if (shouldStop || pollCount > 60) { // Max 60 attempts
+        return;
+      }
+      
+      // Increase interval gradually: 1s → 2s → 3s (max)
+      if (pollCount > 5) pollInterval = 2000;
+      if (pollCount > 10) pollInterval = 3000;
+      
+      setTimeout(poll, pollInterval);
+    };
+    
+    // Start polling immediately
+    poll();
   };
 
   return (
@@ -95,7 +117,7 @@ export default function RecordPage() {
 
       <div className="bg-white rounded-2xl border border-gray-200 p-8">
         {/* Title Input */}
-        <div className="mb-8">
+        <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-1.5">
             Recording Title
           </label>
@@ -107,6 +129,38 @@ export default function RecordPage() {
             placeholder="e.g., Team Meeting Notes"
             disabled={uploadStatus !== "idle"}
           />
+        </div>
+
+        {/* Language Selector */}
+        <div className="mb-8">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            Summary Language
+          </label>
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white"
+            disabled={uploadStatus !== "idle"}
+          >
+            <option value="auto">Same as Audio (Auto-detect)</option>
+            <option value="en">English</option>
+            <option value="ur">اردو (Urdu)</option>
+            <option value="hi">हिन्दी (Hindi)</option>
+            <option value="ar">العربية (Arabic)</option>
+            <option value="es">Español (Spanish)</option>
+            <option value="fr">Français (French)</option>
+            <option value="de">Deutsch (German)</option>
+            <option value="zh">中文 (Chinese)</option>
+            <option value="ja">日本語 (Japanese)</option>
+            <option value="ko">한국어 (Korean)</option>
+            <option value="pt">Português (Portuguese)</option>
+            <option value="ru">Русский (Russian)</option>
+            <option value="it">Italiano (Italian)</option>
+            <option value="tr">Türkçe (Turkish)</option>
+          </select>
+          <p className="text-xs text-gray-500 mt-1.5">
+            Transcript will be in original language. Summary will be in selected language.
+          </p>
         </div>
 
         {/* Recorder */}
@@ -137,7 +191,7 @@ export default function RecordPage() {
                 AI is processing your recording...
               </p>
               <p className="text-sm text-gray-500 mt-1">
-                Transcribing speech and generating summary
+                This usually takes 5-15 seconds
               </p>
             </div>
             <div className="flex gap-2 mt-4">
@@ -170,6 +224,7 @@ export default function RecordPage() {
                 onClick={() => {
                   setUploadStatus("idle");
                   setTitle("");
+                  setLanguage("en");
                   setRecordingId(null);
                 }}
                 className="px-6 py-2.5 border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"

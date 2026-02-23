@@ -15,6 +15,7 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const audioFile = formData.get("audio") as File;
     const title = (formData.get("title") as string) || "Untitled Recording";
+    const language = (formData.get("language") as string) || "en";
 
     if (!audioFile) {
       return NextResponse.json(
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Process in background - transcribe and summarize
-    processRecording(recording.id, blob.url).catch(console.error);
+    processRecording(recording.id, blob.url, language).catch(console.error);
 
     return NextResponse.json({ recording }, { status: 201 });
   } catch (error) {
@@ -53,36 +54,64 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function processRecording(recordingId: string, audioUrl: string) {
+async function processRecording(recordingId: string, audioUrl: string, language: string = "en") {
   try {
-    // Update status to transcribing
-    await prisma.recording.update({
-      where: { id: recordingId },
-      data: { status: "transcribing" },
-    });
-
-    // Fetch audio file for transcription
-    const audioResponse = await fetch(audioUrl);
+    // Fetch audio file for transcription (parallel with status update)
+    const [audioResponse] = await Promise.all([
+      fetch(audioUrl),
+      prisma.recording.update({
+        where: { id: recordingId },
+        data: { status: "transcribing" },
+      })
+    ]);
+    
     const audioBuffer = await audioResponse.arrayBuffer();
     const audioFile = new File([audioBuffer], "audio.webm", {
       type: "audio/webm",
     });
 
-    // Transcribe using OpenAI Whisper
-    const transcription = await openai.audio.transcriptions.create({
+    // Transcribe using OpenAI Whisper (always auto-detect for accuracy)
+    const transcriptionPromise = openai.audio.transcriptions.create({
       file: audioFile,
       model: "whisper-1",
       response_format: "text",
+      // Don't specify language - let Whisper auto-detect for best accuracy
     });
 
-    // Update status to summarizing
+    // Update status to summarizing and get transcription in parallel
+    const [transcription] = await Promise.all([
+      transcriptionPromise,
+      prisma.recording.update({
+        where: { id: recordingId },
+        data: { status: "summarizing" },
+      })
+    ]);
+    
+    // Save transcript
     await prisma.recording.update({
       where: { id: recordingId },
-      data: {
-        transcript: transcription,
-        status: "summarizing",
-      },
+      data: { transcript: transcription },
     });
+
+    // Language names mapping
+    const languageNames: { [key: string]: string } = {
+      en: "English",
+      ur: "Urdu",
+      hi: "Hindi",
+      ar: "Arabic",
+      es: "Spanish",
+      fr: "French",
+      de: "German",
+      zh: "Chinese",
+      ja: "Japanese",
+      ko: "Korean",
+      pt: "Portuguese",
+      ru: "Russian",
+      it: "Italian",
+      tr: "Turkish",
+      auto: "the original language"
+    };
+    const targetLanguage = languageNames[language] || "English";
 
     // Generate summary using GPT
     const summaryResponse = await openai.chat.completions.create({
@@ -90,50 +119,60 @@ async function processRecording(recordingId: string, audioUrl: string) {
       messages: [
         {
           role: "system",
-          content: `You are a professional meeting intelligence assistant similar to Otter.ai. Analyze the transcript and produce a polished, structured summary using this EXACT markdown format:
+          content: `You are an expert meeting intelligence assistant. Your task is to analyze transcripts and create professional, structured summaries in ${targetLanguage}.
+
+YOU MUST follow this EXACT format - do not skip any section:
 
 ## Overview
-Write a concise 2-3 sentence executive overview of what was discussed.
+[Write 2-3 sentences summarizing the main purpose and outcome of this meeting/discussion]
 
 ## Key Topics Discussed
-For each major topic, create a section with details:
-- **Topic Name**: Brief explanation of what was discussed about this topic
-- **Topic Name**: Brief explanation
+[List each major topic with details]
+- **[Topic 1]**: [What was discussed about this topic]
+- **[Topic 2]**: [What was discussed about this topic]
+- **[Topic 3]**: [What was discussed about this topic]
 
 ## Action Items
-List any tasks, to-dos, or follow-ups mentioned (if none, write "No specific action items identified"):
-- [ ] Action item with responsible person (if mentioned)
-- [ ] Another action item
+[List specific tasks, to-dos, or follow-ups mentioned. If none exist, write "No specific action items identified"]
+- [ ] [Action item 1]
+- [ ] [Action item 2]
 
 ## Key Decisions
-List any decisions that were made during the discussion (if none, write "No specific decisions recorded"):
-- Decision description
-- Another decision
+[List important decisions made. If none exist, write "No specific decisions recorded"]
+- [Decision 1]
+- [Decision 2]
 
 ## Important Details & Notes
-- Any important facts, numbers, dates, or details mentioned
-- Names of people or organizations referenced
-- Any deadlines or timelines mentioned
+[Extract key facts, numbers, dates, names, and other important information]
+- [Detail 1]
+- [Detail 2]
+- [Detail 3]
 
 ---
-*Summary generated by VoiceScribe AI*
 
-RULES:
-- Use clean, professional language
-- Be concise but comprehensive
-- Use proper markdown formatting with headers, bold, bullet points, and checkboxes
-- If the transcript is short or informal, still maintain the professional structure but adapt content accordingly
-- Never fabricate information not present in the transcript`,
+CRITICAL RULES:
+1. MUST include ALL sections above (Overview, Key Topics, Action Items, Key Decisions, Important Details)
+2. Use proper markdown with ## headers, - bullets, and **bold** for emphasis
+3. Write in ${targetLanguage} language
+4. Be professional but concise
+5. Extract real information from the transcript - never fabricate
+6. If a section has no content, still include the header with "No [section name] identified"`,
         },
         {
           role: "user",
-          content: `Analyze and summarize the following meeting/audio transcript:\n\n${transcription}`,
+          content: `Please analyze this transcript and create a structured summary following the EXACT format specified:\n\n${transcription}`,
         },
       ],
-      max_tokens: 2000,
+      max_tokens: 3000, // Reduced from 4000 for faster response
+      temperature: 0.3, // Lower for faster, more consistent output
     });
 
-    const summary = summaryResponse.choices[0]?.message?.content || "No summary generated.";
+    let summary = summaryResponse.choices[0]?.message?.content || "No summary generated.";
+    
+    // Add footer to summary
+    if (summary && summary !== "No summary generated.") {
+      summary += "\n\n---\n*Summary generated by VoiceScribe AI*";
+    }
 
     // Update recording with results
     await prisma.recording.update({
