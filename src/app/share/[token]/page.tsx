@@ -136,11 +136,25 @@ export default function SharedRecordingPage() {
             {activeTab === "simple" && (
               <div className="animate-in fade-in duration-500">
                 {recording.summary ? (
-                  <div className="bg-indigo-50/30 rounded-2xl p-6 border border-indigo-100/50">
-                    <div className="text-gray-700 leading-relaxed text-lg italic">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {recording.summary.match(/## Overview\s*\n([\s\S]*?)(?=\n##|$)/)?.[1]?.trim() || recording.summary}
-                      </ReactMarkdown>
+                  <div className="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl p-8 border border-indigo-100 shadow-sm">
+                    <div className="flex items-start gap-3 mb-4">
+                      <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <Brain className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Quick Summary</h3>
+                        <div className="text-gray-700 leading-relaxed text-base">
+                          {(() => {
+                            const overviewMatch = recording.summary.match(/##\s*Overview\s*[\r\n]+([\s\S]*?)(?=\n##|$)/);
+                            if (overviewMatch && overviewMatch[1]) {
+                              return overviewMatch[1].trim();
+                            }
+                            // Fallback: show first paragraph or first 300 chars
+                            const firstPara = recording.summary.split('\n\n')[0];
+                            return firstPara.length > 300 ? firstPara.substring(0, 300) + '...' : firstPara;
+                          })()}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ) : (
