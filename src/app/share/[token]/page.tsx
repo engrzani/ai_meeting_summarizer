@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Loader2, FileText, Clock, User, Mic, Sparkles } from "lucide-react";
+import { Loader2, FileText, Clock, User, Mic, Sparkles, Brain } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
 interface SharedRecording {
@@ -22,7 +22,7 @@ export default function SharedRecordingPage() {
   const [recording, setRecording] = useState<SharedRecording | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState<"summary" | "transcript">("summary");
+  const [activeTab, setActiveTab] = useState<"summary" | "transcript" | "simple">("simple");
 
   useEffect(() => {
     if (token) {
@@ -98,6 +98,17 @@ export default function SharedRecordingPage() {
           {/* Tabs */}
           <div className="flex border-b border-gray-100 bg-gray-50/50">
             <button
+              onClick={() => setActiveTab("simple")}
+              className={`flex items-center gap-2 px-6 py-4 text-sm font-semibold border-b-2 transition-all ${
+                activeTab === "simple"
+                  ? "border-indigo-600 text-indigo-600 bg-white"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-white/50"
+              }`}
+            >
+              <Brain className="w-4 h-4" />
+              Summary
+            </button>
+            <button
               onClick={() => setActiveTab("summary")}
               className={`flex items-center gap-2 px-6 py-4 text-sm font-semibold border-b-2 transition-all ${
                 activeTab === "summary"
@@ -122,6 +133,25 @@ export default function SharedRecordingPage() {
           </div>
 
           <div className="p-8">
+            {activeTab === "simple" && (
+              <div className="animate-in fade-in duration-500">
+                {recording.summary ? (
+                  <div className="bg-indigo-50/30 rounded-2xl p-6 border border-indigo-100/50">
+                    <div className="text-gray-700 leading-relaxed text-lg italic">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {recording.summary.match(/## Overview\s*\n([\s\S]*?)(?=\n##|$)/)?.[1]?.trim() || recording.summary}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <Brain className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-400">No summary available</p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {activeTab === "summary" && (
               <div>
                 {recording.summary ? (
